@@ -1,3 +1,11 @@
+/*
+	PARA TESTAR ESSE CÓDIGO:
+	DEFINIR A VARIAVEL TEST NA LINHA 8
+
+*/
+
+#define test
+
 #include <Arduino.h>
 #include <MPU6050_6Axis_MotionApps_V6_12.h>
 #include <SD.h>
@@ -33,7 +41,6 @@ float ypr[3];		 // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vec
 #define errorled 7
 #define okled 8
 double altura;
-double alturamax;
 double pressao;
 double temperatura;
 
@@ -56,7 +63,6 @@ void setup()
 	{
 		digitalWrite(errorled, HIGH);
 	}
-	digitalWrite(okled, HIGH);
 
 	//evita arquivos duplicados
 
@@ -103,8 +109,11 @@ void setup()
 	Serial.println(F("Testing device connections..."));
 	Serial.println(mpu.testConnection() ? F("MPU6050 connection successful") : F("MPU6050 connection failed"));
 
+	bmp.begin();
+	altura = bmp.altitude();
+	temperatura = bmp.getTemperatureC();
+
 	// load and configure the DMP
-	Serial.println(F("Initializing DMP..."));
 	devStatus = mpu.dmpInitialize();
 
 	// supply your own gyro offsets here, scaled for min sensitivity
@@ -135,7 +144,9 @@ void setup()
 
 		// set our DMP Ready flag so the main loop() function knows it's okay to use it
 		Serial.println(F("DMP ready! Waiting for first interrupt..."));
+
 		dmpReady = true;
+		dmpReady ? digitalWrite(okled, HIGH) : digitalWrite(errorled, HIGH);
 
 		// get expected DMP packet size for later comparison
 		packetSize = mpu.dmpGetFIFOPacketSize();
@@ -161,6 +172,9 @@ void setup()
 
 void loop()
 {
+	altura = bmp.altitude();
+	temperatura = bmp.getTemperatureC();
+
 	// if programming failed, don't try to do anything
 	if (!dmpReady)
 		return;
@@ -171,12 +185,36 @@ void loop()
 		mpu.dmpGetQuaternion(&q, fifoBuffer);
 		mpu.dmpGetGravity(&gravity, &q);
 		mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
-		Serial.print("ypr\t");
+#ifdef test
+		Serial.print(millis());
+		Serial.print(", ");
+		Serial.print(altura);
+		Serial.print(", ");
+		Serial.print(temperatura);
+		Serial.print(", ");
 		Serial.print(ypr[0] * 180 / M_PI);
-		Serial.print("\t");
+		Serial.print(", ");
 		Serial.print(ypr[1] * 180 / M_PI);
-		Serial.print("\t");
+		Serial.print(", ");
 		Serial.print(ypr[2] * 180 / M_PI);
 		Serial.println();
+		Serial.flush();
+
+#else
+
+		sdFile.print(millis());
+		sdFile.print(", ");
+		sdFile.print(altura);
+		sdFile.print(", ");
+		sdFile.print(temperatura);
+		sdFile.print(", ");
+		sdFile.print(ypr[0] * 180 / M_PI);
+		sdFile.print(", ");
+		sdFile.print(ypr[1] * 180 / M_PI);
+		sdFile.print(", ");
+		sdFile.print(ypr[2] * 180 / M_PI);
+		sdFile.println();
+		sdFile.flush();
+#endif
 	}
 }
