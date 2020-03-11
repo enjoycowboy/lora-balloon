@@ -1,11 +1,14 @@
 /*
+
 	PARA TESTAR ESSE CÓDIGO:
 	DEFINIR A VARIAVEL TEST NA LINHA 8
 
 */
 
-#define test
-
+// #define test
+//TODO: FAZER ISSO NÃO SER UM BOILERPLATE GIGANTE
+//TODO: ADICIONAR GPS
+//TODO: ADICIONAR LMIC // RADIOENGE
 #include <Arduino.h>
 #include <MPU6050_6Axis_MotionApps_V6_12.h>
 #include <SD.h>
@@ -56,7 +59,7 @@ char filename[7] = "00.txt";
 
 void setup()
 {
-	int i = 0;
+	uint8_t i = 0;
 	bmp.begin();
 	pinMode(SDFILE_PIN_CS, OUTPUT);
 	if (!SD.begin())
@@ -89,6 +92,7 @@ void setup()
 	Fastwire::setup(400, true);
 #endif
 
+#ifdef test
 	// initialize serial communication
 
 	Serial.begin(9600);
@@ -102,12 +106,15 @@ void setup()
 
 		// initialize device
 		Serial.println(F("Initializing I2C devices..."));
+#endif
 	mpu.initialize();
 	pinMode(INTERRUPT_PIN, INPUT);
 
 	// verify connection
+#ifdef test
 	Serial.println(F("Testing device connections..."));
 	Serial.println(mpu.testConnection() ? F("MPU6050 connection successful") : F("MPU6050 connection failed"));
+#endif
 
 	bmp.begin();
 	altura = bmp.altitude();
@@ -129,21 +136,27 @@ void setup()
 		// Calibration Time: generate offsets and calibrate our MPU6050
 		mpu.CalibrateAccel(6);
 		mpu.CalibrateGyro(6);
+#ifdef test
 		Serial.println();
 		mpu.PrintActiveOffsets();
 		// turn on the DMP, now that it's ready
 		Serial.println(F("Enabling DMP..."));
+#endif
 		mpu.setDMPEnabled(true);
 
-		// enable Arduino interrupt detection
+// enable Arduino interrupt detection
+#ifdef test
 		Serial.print(F("Enabling interrupt detection (Arduino external interrupt "));
 		Serial.print(digitalPinToInterrupt(INTERRUPT_PIN));
 		Serial.println(F(")..."));
+#endif
 		attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), dmpDataReady, RISING);
 		mpuIntStatus = mpu.getIntStatus();
 
-		// set our DMP Ready flag so the main loop() function knows it's okay to use it
+// set our DMP Ready flag so the main loop() function knows it's okay to use it
+#ifdef test
 		Serial.println(F("DMP ready! Waiting for first interrupt..."));
+#endif
 
 		dmpReady = true;
 		dmpReady ? digitalWrite(okled, HIGH) : digitalWrite(errorled, HIGH);
@@ -153,6 +166,7 @@ void setup()
 	}
 	else
 	{
+#ifdef test
 		// ERROR!
 		// 1 = initial memory load failed
 		// 2 = DMP configuration updates failed
@@ -160,6 +174,7 @@ void setup()
 		Serial.print(F("DMP Initialization failed (code "));
 		Serial.print(devStatus);
 		Serial.println(F(")"));
+#endif
 	}
 
 	// configure LED for output
@@ -201,7 +216,7 @@ void loop()
 		Serial.flush();
 
 #else
-
+		//TODO: otimizar o ciclo de escrita
 		sdFile.print(millis());
 		sdFile.print(", ");
 		sdFile.print(altura);
