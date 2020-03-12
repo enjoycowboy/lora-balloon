@@ -105,6 +105,12 @@ void onEvent (ev_t ev) {
     }
 }
 
+// passar um ponteiro pra região onde tá o buffer
+//
+// void do_send(osjob_t* j, *p send_str)
+//
+// TODO: integrar esse arquivo com o main
+
 void do_send(osjob_t* j){
     // Check if there is not a current TX/RX job running
     if (LMIC.opmode & OP_TXRXPEND) {
