@@ -17,7 +17,7 @@
 #include "I2Cdev.h"
 #include "SFE_BMP180.h"
 #include <stdio.h>
-#include <lora.h>
+#include "lora.h"
 MPU6050 mpu;
 
 #define INTERRUPT_PIN 2 // use pin 2 on Arduino Uno & most boards
@@ -40,48 +40,12 @@ VectorInt16 aaReal; 	 // [x, y, z]            gravity-free accel sensor measurem
 VectorInt16 aaWorld;	 // [x, y, z]            world-frame accel sensor measurements
 VectorFloat gravity;	 // [x, y, z]            gravity vector
 float euler[3];		 // [psi, theta, phi]    Euler angle container
-float ypr[9];		 // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
+float ypr[3];		 // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
 
 #define SDFILE_PIN_CS 10
 #define errorled 7
 #define okled 8
-double altura;
-double pressao;
-double temperatura;
-
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-//	Lora setup vars
-// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-
-static const u1_t PROGMEM APPEUI[8]={ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-void os_getArtEui (u1_t* buf) { memcpy_P(buf, APPEUI, 8);}
-
-// This should also be in little endian format, see above.
-static const u1_t PROGMEM DEVEUI[8]={ 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-void os_getDevEui (u1_t* buf) { memcpy_P(buf, DEVEUI, 8);}
-
-// This key should be in big endian format (or, since it is not really a
-// number but a block of memory, endianness does not really apply). In
-// practice, a key taken from ttnctl can be copied as-is.
-// The key shown here is the semtech default key.
-static const u1_t PROGMEM APPKEY[16] = { 0x2B, 0x7E, 0x15, 0x16, 0x28, 0xAE, 0xD2, 0xA6, 0xAB, 0xF7, 0x15, 0x88, 0x09, 0xCF, 0x4F, 0x3C };
-void os_getDevKey (u1_t* buf) {  memcpy_P(buf, APPKEY, 16);}
-
-// static uint8_t mydata[] = "Hello, world!"; <- dados a serem transmitidos
-static osjob_t sendjob;
-
-// Schedule TX every this many seconds (might become longer due to duty
-// cycle limitations).
-const unsigned TX_INTERVAL = 60;
-
-// Pin mapping
-const lmic_pinmap lmic_pins = {
-    .nss = 6,
-    .rxtx = LMIC_UNUSED_PIN,
-    .rst = 5,
-    .dio = {2, 3, 4},
-};
-
 volatile bool mpuInterrupt = false; // indicates whether MPU interrupt pin has gone high
 void dmpDataReady()
 {
@@ -92,8 +56,7 @@ File sdFile;
 SFE_BMP180 bmp;
 char filename[7] = "00.txt";
 
-void setup()
-{
+void setup(){
 	
 	uint8_t i = 0;
 	
@@ -239,11 +202,16 @@ void setup()
 void loop()
 {
 // ypr = [time | alt | temp | yaw | pitch | roll | lat | long | rssi]
-	
-	tempo = millis();
-	altura = bmp.altitude();
-	temperatura = bmp.getTemperatureC();
-	
+	double data[9];
+	data[0] = millis()/1000;
+	data[1] = bmp.altitude();
+	data[2] = bmp.getTemperatureC();
+	data[3] = ypr[0] * 180 / M_PI;
+	data[4] = ypr[1] * 180 / M_PI;
+	data[5] = ypr[2] * 180 / M_PI;
+	data[6] = 666.6;
+	data[7] = 999.9;
+	data[8] = 0; //rssi
 
 	// if programming failed, don't try to do anything
 	if (!dmpReady)
@@ -271,20 +239,19 @@ void loop()
 		Serial.flush();
 
 #else
-		//TODO: otimizar o ciclo de escrita
-		sdFile.print(millis());
-		sdFile.print(", ");
-		sdFile.print(altura);
-		sdFile.print(", ");
-		sdFile.print(temperatura);
-		sdFile.print(", ");
-		sdFile.print(ypr[0] * 180 / M_PI);
-		sdFile.print(", ");
-		sdFile.print(ypr[1] * 180 / M_PI);
-		sdFile.print(", ");
-		sdFile.print(ypr[2] * 180 / M_PI);
-		sdFile.println();
-		sdFile.flush();
+// saida pro SD
+
+		for (uint8_t j=0;j<=9;j++){
+			SD.print(data[j]);
+			SD.print(", ");
+		}
+		SD.println();
+		SD.flush();
+
+		for (uint8_t k=0;k<=9;k++){
+			do_send(osjob_t* j, data[j]);
+		}
+
 #endif
 	}
 }
