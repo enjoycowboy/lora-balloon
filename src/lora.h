@@ -6,20 +6,6 @@
 // first. When copying an EUI from ttnctl output, this means to reverse
 // the bytes. For TTN issued EUIs the last bytes should be 0xD5, 0xB3,
 // 0x70.
-static const u1_t PROGMEM APPEUI[8]={ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-void os_getArtEui (u1_t* buf) { memcpy_P(buf, APPEUI, 8);}
-
-// This should also be in little endian format, see above.
-static const u1_t PROGMEM DEVEUI[8]={ 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-void os_getDevEui (u1_t* buf) { memcpy_P(buf, DEVEUI, 8);}
-
-// This key should be in big endian format (or, since it is not really a
-// number but a block of memory, endianness does not really apply). In
-// practice, a key taken from ttnctl can be copied as-is.
-// The key shown here is the semtech default key.
-static const u1_t PROGMEM APPKEY[16] = { 0x2B, 0x7E, 0x15, 0x16, 0x28, 0xAE, 0xD2, 0xA6, 0xAB, 0xF7, 0x15, 0x88, 0x09, 0xCF, 0x4F, 0x3C };
-void os_getDevKey (u1_t* buf) {  memcpy_P(buf, APPKEY, 16);}
-
 static uint8_t mydata[] = "Hello, world!";
 static osjob_t sendjob;
 
@@ -109,7 +95,6 @@ void onEvent (ev_t ev) {
 //
 // void do_send(osjob_t* j, *p send_str)
 //
-// TODO: integrar esse arquivo com o main
 
 void do_send(osjob_t* j){
     // Check if there is not a current TX/RX job running
@@ -123,9 +108,11 @@ void do_send(osjob_t* j){
     // Next TX is scheduled after TX_COMPLETE event.
 }
 
-void setup() {
+void loraSetup() {
+#ifdef test
     Serial.begin(9600);
     Serial.println(F("Starting"));
+#endif
 
     #ifdef VCC_ENABLE
     // For Pinoccio Scout boards
@@ -143,6 +130,8 @@ void setup() {
     do_send(&sendjob);
 }
 
+/*
 void loop() {
     os_runloop_once();
 }
+*/
