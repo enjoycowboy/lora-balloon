@@ -16,8 +16,6 @@
 #include "Wire.h"
 #include "I2Cdev.h"
 #include "SFE_BMP180.h"
-#include <stdio.h>
-#include <lora.h>
 MPU6050 mpu;
 
 #define INTERRUPT_PIN 2 // use pin 2 on Arduino Uno & most boards
@@ -40,7 +38,7 @@ VectorInt16 aaReal; 	 // [x, y, z]            gravity-free accel sensor measurem
 VectorInt16 aaWorld;	 // [x, y, z]            world-frame accel sensor measurements
 VectorFloat gravity;	 // [x, y, z]            gravity vector
 float euler[3];		 // [psi, theta, phi]    Euler angle container
-float ypr[9];		 // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
+float ypr[3];		 // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
 
 #define SDFILE_PIN_CS 10
 #define errorled 7
@@ -48,39 +46,6 @@ float ypr[9];		 // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vec
 double altura;
 double pressao;
 double temperatura;
-
-// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-//	Lora setup vars
-// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-
-static const u1_t PROGMEM APPEUI[8]={ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-void os_getArtEui (u1_t* buf) { memcpy_P(buf, APPEUI, 8);}
-
-// This should also be in little endian format, see above.
-static const u1_t PROGMEM DEVEUI[8]={ 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-void os_getDevEui (u1_t* buf) { memcpy_P(buf, DEVEUI, 8);}
-
-// This key should be in big endian format (or, since it is not really a
-// number but a block of memory, endianness does not really apply). In
-// practice, a key taken from ttnctl can be copied as-is.
-// The key shown here is the semtech default key.
-static const u1_t PROGMEM APPKEY[16] = { 0x2B, 0x7E, 0x15, 0x16, 0x28, 0xAE, 0xD2, 0xA6, 0xAB, 0xF7, 0x15, 0x88, 0x09, 0xCF, 0x4F, 0x3C };
-void os_getDevKey (u1_t* buf) {  memcpy_P(buf, APPKEY, 16);}
-
-// static uint8_t mydata[] = "Hello, world!"; <- dados a serem transmitidos
-static osjob_t sendjob;
-
-// Schedule TX every this many seconds (might become longer due to duty
-// cycle limitations).
-const unsigned TX_INTERVAL = 60;
-
-// Pin mapping
-const lmic_pinmap lmic_pins = {
-    .nss = 6,
-    .rxtx = LMIC_UNUSED_PIN,
-    .rst = 5,
-    .dio = {2, 3, 4},
-};
 
 volatile bool mpuInterrupt = false; // indicates whether MPU interrupt pin has gone high
 void dmpDataReady()
@@ -94,11 +59,9 @@ char filename[7] = "00.txt";
 
 void setup()
 {
-	
 	uint8_t i = 0;
-	
-	// * *  *  *  *  *  *  *  *  *   *   *   *   SD SETUP
-		pinMode(SDFILE_PIN_CS, OUTPUT);
+	bmp.begin();
+	pinMode(SDFILE_PIN_CS, OUTPUT);
 	if (!SD.begin())
 	{
 		digitalWrite(errorled, HIGH);
@@ -120,7 +83,6 @@ void setup()
 		}
 		i++;
 	}
-
 
 // join I2C bus (I2Cdev library doesn't do this automatically)
 #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
@@ -153,8 +115,6 @@ void setup()
 	Serial.println(F("Testing device connections..."));
 	Serial.println(mpu.testConnection() ? F("MPU6050 connection successful") : F("MPU6050 connection failed"));
 #endif
-
-// DYNAMICS SETUP
 
 	bmp.begin();
 	altura = bmp.altitude();
@@ -219,18 +179,7 @@ void setup()
 
 	// configure LED for output
 	pinMode(LED_PIN, OUTPUT);
-	loraSetup();
-
 }
-/*
-#define MAX = 16
-*char typecast(double *a){
-	char buf[MAX];
-	gcvt(a, 8, buf);			usar essa função pra lidar apenas com um buffer
-	return &buf;				seja pra mandar via lora ou pra escrever no sd
-						TODO: ACHAR UM JEITO DE FAZER ISSO
-}
-*/
 
 // ================================================================
 // ===                    MAIN PROGRAM LOOP                     ===
@@ -238,12 +187,8 @@ void setup()
 
 void loop()
 {
-// ypr = [time | alt | temp | yaw | pitch | roll | lat | long | rssi]
-	
-	tempo = millis();
 	altura = bmp.altitude();
 	temperatura = bmp.getTemperatureC();
-	
 
 	// if programming failed, don't try to do anything
 	if (!dmpReady)
